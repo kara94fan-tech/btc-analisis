@@ -1,12 +1,11 @@
 
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#090d14">
-<title>BTC ANALYZER V2.0</title>
+<title>BTC ANALYZER V2.1</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#090d14;color:#e8edf5;font-family:Arial,sans-serif}
@@ -56,7 +55,7 @@ hr{border:0;border-top:1px solid #293648;margin:13px 0}
 <main>
 
 <header>
-<h1>₿ BTC ANALYZER V2.0</h1>
+<h1>₿ BTC ANALYZER V2.1</h1>
 <div class="muted">MULTI TIMEFRAME • MARKET STRUCTURE • LIQUIDITY SCANNER</div>
 </header>
 
@@ -135,9 +134,10 @@ hr{border:0;border-top:1px solid #293648;margin:13px 0}
  <div class="row"><span>Higher High / Lower High</span><b id="swingHigh">--</b></div>
  <div class="row"><span>Higher Low / Lower Low</span><b id="swingLow">--</b></div>
  <div class="row"><span>Arah struktur</span><b id="structureDirection">--</b></div>
- <div class="row"><span>BOS</span><b id="bos">--</b></div>
- <div class="row"><span>CHoCH</span><b id="choch">--</b></div>
- <p class="small">BOS dan CHoCH dihitung dari penutupan candle terhadap swing yang sudah terkonfirmasi.</p>
+ <div class="row"><span>BOS terbaru</span><b id="bos">--</b></div>
+ <div class="row"><span>CHoCH terbaru</span><b id="choch">--</b></div>
+ <div class="row"><span>Waktu konfirmasi</span><b id="breakTime">--</b></div>
+ <p class="small">BOS dan CHoCH diperiksa dari candle yang sudah selesai dan swing yang telah terkonfirmasi pada saat kejadian.</p>
 </div>
 
 <div class="card">
@@ -146,8 +146,9 @@ hr{border:0;border-top:1px solid #293648;margin:13px 0}
  <div class="row"><span>Sell-side liquidity</span><b id="sellLiquidity">--</b></div>
  <div class="row"><span>Equal High</span><b id="equalHigh">--</b></div>
  <div class="row"><span>Equal Low</span><b id="equalLow">--</b></div>
- <div class="row"><span>Liquidity Sweep</span><b id="sweep">--</b></div>
- <p class="small">Sweep adalah indikasi wick melewati level swing lalu candle kembali menutup di sisi sebelumnya. Bukan bukti pasti bahwa pembalikan akan terjadi.</p>
+ <div class="row"><span>Liquidity Sweep terbaru</span><b id="sweep">--</b></div>
+ <div class="row"><span>Waktu sweep</span><b id="sweepTime">--</b></div>
+ <p class="small">Pemeriksaan sweep menggunakan hingga 30 candle M15 terakhir. Sweep adalah indikasi wick melewati level lalu candle kembali menutup di sisi sebelumnya, bukan bukti pasti pembalikan.</p>
 </div>
 
 <div class="card">
@@ -176,12 +177,19 @@ hr{border:0;border-top:1px solid #293648;margin:13px 0}
 </div>
 
 <div class="card">
+ <h3>SKENARIO STRUKTUR</h3>
+ <div class="row"><span>Kondisi terbaru</span><b id="scenario">--</b></div>
+ <div class="row"><span>Arah struktur sebelumnya</span><b id="priorTrend">--</b></div>
+ <div class="row"><span>Penjelasan</span><b id="scenarioReason">--</b></div>
+</div>
+
+<div class="card">
  <h3>SIMULASI RISIKO</h3>
  <div class="row"><span>Harga acuan simulasi</span><b id="simEntry">--</b></div>
  <div class="row"><span>Stop simulasi (ATR × 1,5)</span><b id="simStop">--</b></div>
  <div class="row"><span>Target simulasi (2R)</span><b id="simTarget">--</b></div>
  <div class="row"><span>Rasio risiko/imbalan</span><b id="simRR">--</b></div>
- <p class="small">Level ini hanya ilustrasi perhitungan berdasarkan ATR dan arah skenario. Bukan instruksi entry atau rekomendasi transaksi.</p>
+ <p class="small">Hanya ilustrasi perhitungan matematis. Bukan instruksi transaksi atau rekomendasi entry.</p>
 </div>
 
 <div class="card">
@@ -208,13 +216,14 @@ hr{border:0;border-top:1px solid #293648;margin:13px 0}
  <p class="muted warning">
  Data Kraken adalah pembanding BTC/USD, bukan harga langsung Exness.
  Indikator teknikal dan pola market tidak dapat memastikan arah harga atau menjamin tingkat akurasi tertentu.
- Sinyal BUY, SELL, dan WAIT hanya label hasil simulasi edukasi. Level risiko juga hanya ilustrasi.
+ Label BUY, SELL, dan WAIT hanya hasil simulasi edukasi, bukan arahan transaksi.
+ Level risiko juga hanya ilustrasi.
  Tidak ada koneksi akun broker dan tidak ada transaksi otomatis.
  </p>
 </div>
 
 <div class="footer muted">
- BTC ANALYZER V2.0 • Data publik Kraken • Analisis edukasi
+ BTC ANALYZER V2.1 • Data publik Kraken • Analisis edukasi
 </div>
 </main>
 
@@ -223,6 +232,10 @@ hr{border:0;border-top:1px solid #293648;margin:13px 0}
 
 const ENDPOINT="https://api.kraken.com/0/public/OHLC";
 const REFRESH_MS=60000;
+const SWING_LEFT=2;
+const SWING_RIGHT=2;
+const HISTORY_WINDOW=30;
+
 let busy=false;
 let previousSignal=null;
 let signalHistory=[];
@@ -260,14 +273,17 @@ function ema(values,period){
  if(values.length<period)return null;
  let result=average(values.slice(0,period));
  const multiplier=2/(period+1);
+
  for(let i=period;i<values.length;i++){
   result=(values[i]-result)*multiplier+result;
  }
+
  return result;
 }
 
 function rsi(values,period=14){
  if(values.length<=period)return null;
+
  let gains=0,losses=0;
 
  for(let i=1;i<=period;i++){
@@ -294,10 +310,12 @@ function rsi(values,period=14){
 
 function atr(data,period=14){
  if(data.length<=period)return null;
+
  const ranges=[];
 
  for(let i=1;i<data.length;i++){
   const c=data[i],prev=data[i-1];
+
   ranges.push(Math.max(
    c.high-c.low,
    Math.abs(c.high-prev.close),
@@ -306,9 +324,11 @@ function atr(data,period=14){
  }
 
  let value=average(ranges.slice(0,period));
+
  for(let i=period;i<ranges.length;i++){
   value=(value*(period-1)+ranges[i])/period;
  }
+
  return value;
 }
 
@@ -319,19 +339,21 @@ async function getCandles(minutes){
  if(!response.ok)throw new Error("HTTP "+response.status);
 
  const json=await response.json();
+
  if(json.error&&json.error.length){
   throw new Error(json.error.join(", "));
  }
 
  const key=Object.keys(json.result).find(k=>k!=="last");
+
  if(!key)throw new Error("Data candle tidak ditemukan");
 
  const raw=json.result[key];
+
  if(!Array.isArray(raw)||raw.length<60){
   throw new Error("Jumlah candle belum cukup");
  }
 
- // Candle terakhir masih berjalan, tidak digunakan.
  return raw.slice(0,-1).map(c=>({
   time:Number(c[0]),
   open:Number(c[1]),
@@ -342,21 +364,40 @@ async function getCandles(minutes){
  }));
 }
 
-function findSwings(data,left=2,right=2){
+/* SWING YANG SUDAH TERKONFIRMASI */
+
+function findSwings(data,left=SWING_LEFT,right=SWING_RIGHT){
  const highs=[],lows=[];
 
  for(let i=left;i<data.length-right;i++){
-  let high=true,low=true;
+  let isHigh=true;
+  let isLow=true;
   const current=data[i];
 
   for(let j=i-left;j<=i+right;j++){
    if(j===i)continue;
-   if(data[j].high>=current.high)high=false;
-   if(data[j].low<=current.low)low=false;
+
+   if(data[j].high>=current.high)isHigh=false;
+   if(data[j].low<=current.low)isLow=false;
   }
 
-  if(high)highs.push({price:current.high,index:i,time:current.time});
-  if(low)lows.push({price:current.low,index:i,time:current.time});
+  if(isHigh){
+   highs.push({
+    price:current.high,
+    index:i,
+    availableAt:i+right,
+    time:current.time
+   });
+  }
+
+  if(isLow){
+   lows.push({
+    price:current.low,
+    index:i,
+    availableAt:i+right,
+    time:current.time
+   });
+  }
  }
 
  return {highs,lows};
@@ -364,34 +405,61 @@ function findSwings(data,left=2,right=2){
 
 function marketStructure(data){
  const swings=findSwings(data);
- const highs=swings.highs,lows=swings.lows;
+ const highs=swings.highs;
+ const lows=swings.lows;
 
  if(highs.length<2||lows.length<2){
   return {
-   highs,lows,highLabel:"--",lowLabel:"--",
-   direction:"UNKNOWN",text:"Struktur belum cukup",
-   lastHigh:null,lastLow:null
+   highs,lows,
+   highLabel:"--",
+   lowLabel:"--",
+   direction:"UNKNOWN",
+   text:"Struktur belum cukup",
+   lastHigh:null,
+   lastLow:null
   };
  }
 
- const ph=highs[highs.length-2].price;
- const lh=highs[highs.length-1].price;
- const pl=lows[lows.length-2].price;
- const ll=lows[lows.length-1].price;
+ const previousHigh=highs[highs.length-2].price;
+ const latestHigh=highs[highs.length-1].price;
+ const previousLow=lows[lows.length-2].price;
+ const latestLow=lows[lows.length-1].price;
 
- const highLabel=lh>ph?"HH":"LH";
- const lowLabel=ll>pl?"HL":"LL";
+ const highLabel=latestHigh>previousHigh?"HH":"LH";
+ const lowLabel=latestLow>previousLow?"HL":"LL";
 
  let direction="MIXED";
+
  if(highLabel==="HH"&&lowLabel==="HL")direction="BULLISH";
  if(highLabel==="LH"&&lowLabel==="LL")direction="BEARISH";
 
  return {
-  highs,lows,highLabel,lowLabel,direction,
+  highs,lows,
+  highLabel,lowLabel,direction,
   text:highLabel+" / "+lowLabel,
   lastHigh:highs[highs.length-1],
   lastLow:lows[lows.length-1]
  };
+}
+
+/* ARAH STRUKTUR PADA WAKTU TERTENTU */
+
+function directionAt(highs,lows,index){
+ const h=highs.filter(x=>x.availableAt<index);
+ const l=lows.filter(x=>x.availableAt<index);
+
+ if(h.length<2||l.length<2)return "UNKNOWN";
+
+ const highDirection=
+  h[h.length-1].price>h[h.length-2].price?"HH":"LH";
+
+ const lowDirection=
+  l[l.length-1].price>l[l.length-2].price?"HL":"LL";
+
+ if(highDirection==="HH"&&lowDirection==="HL")return "BULLISH";
+ if(highDirection==="LH"&&lowDirection==="LL")return "BEARISH";
+
+ return "MIXED";
 }
 
 function analyze(data){
@@ -399,6 +467,7 @@ function analyze(data){
  const last=data[data.length-1].close;
  const e20=ema(closes,20);
  const e50=ema(closes,50);
+
  let direction="SIDEWAYS";
 
  if(e20!==null&&e50!==null){
@@ -407,77 +476,210 @@ function analyze(data){
  }
 
  return {
-  direction,last,e20,e50,
+  direction,
+  last,
+  e20,
+  e50,
   rsi:rsi(closes),
   atr:atr(data),
   structure:marketStructure(data)
  };
 }
 
+/* BOS DAN CHoCH HISTORIS */
+
 function detectBreaks(data,structure){
- const last=data[data.length-1];
- const previous=data[data.length-2];
- const high=structure.lastHigh;
- const low=structure.lastLow;
+ const swings=structure;
+ const events=[];
 
- let bos="Tidak ada";
- let choch="Tidak ada";
+ let activeHigh=null;
+ let activeLow=null;
 
- if(!high||!low)return {bos,choch};
+ const highMap=new Map();
+ const lowMap=new Map();
 
- const upBreak=last.close>high.price&&previous.close<=high.price;
- const downBreak=last.close<low.price&&previous.close>=low.price;
+ swings.highs.forEach(item=>{
+  highMap.set(item.availableAt,item);
+ });
 
- if(upBreak){
-  bos="Bullish";
-  if(structure.direction==="BEARISH")choch="Bullish";
- }else if(downBreak){
-  bos="Bearish";
-  if(structure.direction==="BULLISH")choch="Bearish";
+ swings.lows.forEach(item=>{
+  lowMap.set(item.availableAt,item);
+ });
+
+ for(let i=1;i<data.length;i++){
+
+  if(highMap.has(i))activeHigh=highMap.get(i);
+  if(lowMap.has(i))activeLow=lowMap.get(i);
+
+  if(!activeHigh||!activeLow)continue;
+
+  const previous=data[i-1];
+  const current=data[i];
+
+  const upBreak=
+   current.close>activeHigh.price&&
+   previous.close<=activeHigh.price;
+
+  const downBreak=
+   current.close<activeLow.price&&
+   previous.close>=activeLow.price;
+
+  if(!upBreak&&!downBreak)continue;
+
+  const direction=upBreak?"Bullish":"Bearish";
+  const previousTrend=directionAt(
+   swings.highs,
+   swings.lows,
+   i
+  );
+
+  const isChange=
+   (direction==="Bullish"&&previousTrend==="BEARISH")||
+   (direction==="Bearish"&&previousTrend==="BULLISH");
+
+  events.push({
+   direction,
+   type:isChange?"CHoCH":"BOS",
+   previousTrend,
+   price:upBreak?activeHigh.price:activeLow.price,
+   time:current.time,
+   index:i
+  });
  }
 
- return {bos,choch};
+ const recent=events.filter(e=>
+  e.index>=data.length-HISTORY_WINDOW
+ );
+
+ const latest=recent.length?
+  recent[recent.length-1]:null;
+
+ const latestBos=[...recent].reverse().find(e=>e.type==="BOS");
+ const latestChoch=[...recent].reverse().find(e=>e.type==="CHoCH");
+
+ return {
+  bos:latestBos?latestBos.direction:"Tidak ada",
+  choch:latestChoch?latestChoch.direction:"Tidak ada",
+  latest,
+  latestBos,
+  latestChoch,
+  events:recent
+ };
 }
 
+/* EQUAL HIGH / EQUAL LOW DAN SWEEP HISTORIS */
+
 function detectLiquidity(data,structure,atrValue){
- const last=data[data.length-1];
  const highs=structure.highs;
  const lows=structure.lows;
- const tolerance=atrValue?atrValue*0.15:last.close*0.001;
+ const last=data[data.length-1];
 
- let equalHigh=null,equalLow=null;
+ const tolerance=atrValue?
+  Math.max(atrValue*0.15,last.close*0.0003):
+  last.close*0.001;
 
- if(highs.length>=2){
-  const a=highs[highs.length-1];
-  const b=highs[highs.length-2];
-  if(Math.abs(a.price-b.price)<=tolerance){
-   equalHigh=(a.price+b.price)/2;
+ function findEqual(items){
+  if(items.length<2)return null;
+
+  const recent=items.slice(-8);
+
+  for(let i=recent.length-1;i>=1;i--){
+   for(let j=i-1;j>=0;j--){
+    if(Math.abs(recent[i].price-recent[j].price)<=tolerance){
+     return {
+      price:(recent[i].price+recent[j].price)/2,
+      count:2,
+      time:recent[i].time
+     };
+    }
+   }
   }
+
+  return null;
  }
 
- if(lows.length>=2){
-  const a=lows[lows.length-1];
-  const b=lows[lows.length-2];
-  if(Math.abs(a.price-b.price)<=tolerance){
-   equalLow=(a.price+b.price)/2;
+ const equalHigh=findEqual(highs);
+ const equalLow=findEqual(lows);
+
+ const availableHighs=highs.filter(x=>
+  x.availableAt<data.length-1
+ );
+
+ const availableLows=lows.filter(x=>
+  x.availableAt<data.length-1
+ );
+
+ const referenceHigh=availableHighs.length?
+  availableHighs[availableHighs.length-1]:null;
+
+ const referenceLow=availableLows.length?
+  availableLows[availableLows.length-1]:null;
+
+ let latestSweep=null;
+
+ const start=Math.max(1,data.length-HISTORY_WINDOW);
+
+ for(let i=start;i<data.length;i++){
+
+  const confirmedHighs=highs.filter(x=>
+   x.availableAt<i
+  );
+
+  const confirmedLows=lows.filter(x=>
+   x.availableAt<i
+  );
+
+  const rh=confirmedHighs.length?
+   confirmedHighs[confirmedHighs.length-1]:null;
+
+  const rl=confirmedLows.length?
+   confirmedLows[confirmedLows.length-1]:null;
+
+  if(!rh||!rl)continue;
+
+  const candle=data[i];
+
+  const buySweep=
+   candle.high>rh.price+tolerance*0.05&&
+   candle.close<rh.price;
+
+  const sellSweep=
+   candle.low<rl.price-tolerance*0.05&&
+   candle.close>rl.price;
+
+  if(buySweep){
+   latestSweep={
+    direction:"Buy-side sweep",
+    time:candle.time,
+    level:rh.price,
+    index:i
+   };
+  }else if(sellSweep){
+   latestSweep={
+    direction:"Sell-side sweep",
+    time:candle.time,
+    level:rl.price,
+    index:i
+   };
   }
- }
-
- const referenceHigh=highs.length?highs[highs.length-1]:null;
- const referenceLow=lows.length?lows[lows.length-1]:null;
-
- let sweep="Tidak terdeteksi";
-
- if(referenceHigh&&last.high>referenceHigh.price&&last.close<referenceHigh.price){
-  sweep="Buy-side sweep";
- }else if(referenceLow&&last.low<referenceLow.price&&last.close>referenceLow.price){
-  sweep="Sell-side sweep";
  }
 
  return {
-  buySide:equalHigh?fmt(equalHigh):referenceHigh?fmt(referenceHigh.price):"--",
-  sellSide:equalLow?fmt(equalLow):referenceLow?fmt(referenceLow.price):"--",
-  equalHigh,equalLow,sweep
+  buySide:equalHigh?
+   fmt(equalHigh.price):
+   referenceHigh?fmt(referenceHigh.price):"--",
+
+  sellSide:equalLow?
+   fmt(equalLow.price):
+   referenceLow?fmt(referenceLow.price):"--",
+
+  equalHigh,
+  equalLow,
+
+  sweep:latestSweep?
+   latestSweep.direction:"Tidak terdeteksi",
+
+  sweepEvent:latestSweep
  };
 }
 
@@ -487,7 +689,6 @@ function detectFVG(data){
 
  for(let i=start;i<data.length;i++){
   const first=data[i-2];
-  const middle=data[i-1];
   const third=data[i];
 
   if(third.low>first.high){
@@ -510,25 +711,34 @@ function detectFVG(data){
  return results.length?results[results.length-1]:null;
 }
 
-function detectZones(data,atrValue){
+function detectZones(data){
  const start=Math.max(2,data.length-35);
  const recent=data.slice(start);
  const bodies=recent.map(c=>Math.abs(c.close-c.open));
  const avgBody=average(bodies)||0;
- let demand=null,supply=null;
+
+ let demand=null;
+ let supply=null;
 
  for(let i=data.length-1;i>=start+1;i--){
-  const c=data[i],previous=data[i-1];
+  const c=data[i];
+  const previous=data[i-1];
   const body=Math.abs(c.close-c.open);
 
   if(!demand&&previous.close<previous.open&&
      c.close>c.open&&body>avgBody*1.35){
-   demand={low:previous.low,high:previous.high};
+   demand={
+    low:previous.low,
+    high:previous.high
+   };
   }
 
   if(!supply&&previous.close>previous.open&&
      c.close<c.open&&body>avgBody*1.35){
-   supply={low:previous.low,high:previous.high};
+   supply={
+    low:previous.low,
+    high:previous.high
+   };
   }
 
   if(demand&&supply)break;
@@ -545,6 +755,7 @@ function detectRange(data){
  const price=data[data.length-1].close;
 
  let position="EQUILIBRIUM";
+
  if(price>mid)position="PREMIUM";
  if(price<mid)position="DISCOUNT";
 
@@ -574,6 +785,7 @@ function setRSI(id,statusId,value){
 function setTF(id,detailId,structureId,result){
  const el=byId(id);
  el.textContent=result.direction;
+
  el.style.color=
   result.direction==="BULLISH"?"#37d99a":
   result.direction==="BEARISH"?"#ff6878":"#ffc857";
@@ -582,6 +794,7 @@ function setTF(id,detailId,structureId,result){
 
  const structureEl=byId(structureId);
  structureEl.textContent=result.structure.text;
+
  structureEl.style.color=
   result.structure.direction==="BULLISH"?"#37d99a":
   result.structure.direction==="BEARISH"?"#ff6878":"#ffc857";
@@ -589,21 +802,26 @@ function setTF(id,detailId,structureId,result){
 
 function setRowColor(id,value){
  const el=byId(id);
+
  el.style.color=
-  value==="Bullish"||value==="BULLISH"||value==="BUY"||
-  value==="Sell-side sweep"?"#37d99a":
-  value==="Bearish"||value==="BEARISH"||value==="SELL"||
-  value==="Buy-side sweep"?"#ff6878":"#ffc857";
+  value==="Bullish"||value==="BULLISH"||
+  value==="BUY"||value==="Sell-side sweep"?
+  "#37d99a":
+  value==="Bearish"||value==="BEARISH"||
+  value==="SELL"||value==="Buy-side sweep"?
+  "#ff6878":"#ffc857";
 }
 
 function renderHistory(signal,price){
  if(signal!==previousSignal){
   previousSignal=signal;
+
   signalHistory.unshift({
    signal,
    price,
    time:new Date().toLocaleTimeString("id-ID")
   });
+
   signalHistory=signalHistory.slice(0,8);
  }
 
@@ -613,21 +831,28 @@ function renderHistory(signal,price){
  }
 
  byId("history").innerHTML=signalHistory.map(item=>
-  '<div class="history-item"><b>'+item.signal+
-  '</b> • '+fmt(item.price)+'<br><span class="small">'+
-  item.time+'</span></div>'
+  '<div class="history-item"><b>'+
+  item.signal+'</b> • '+fmt(item.price)+
+  '<br><span class="small">'+item.time+
+  '</span></div>'
  ).join("");
 }
 
 function updateRisk(signal,price,atrValue){
  if(!atrValue||signal==="WAIT"){
-  ["simEntry","simStop","simTarget","simRR"].forEach(id=>setText(id,"--"));
+  ["simEntry","simStop","simTarget","simRR"].forEach(id=>
+   setText(id,"--")
+  );
   return;
  }
 
  const distance=atrValue*1.5;
- const stop=signal==="BUY"?price-distance:price+distance;
- const target=signal==="BUY"?price+distance*2:price-distance*2;
+
+ const stop=signal==="BUY"?
+  price-distance:price+distance;
+
+ const target=signal==="BUY"?
+  price+distance*2:price-distance*2;
 
  setText("simEntry",fmt(price));
  setText("simStop",fmt(stop));
@@ -636,36 +861,90 @@ function updateRisk(signal,price,atrValue){
 }
 
 function determineSignal(a4,a1,a15,breaks,liquidity){
- const allBullish=
-  [a4,a1,a15].every(a=>
-   a.direction==="BULLISH"&&
-   a.structure.direction==="BULLISH"
-  );
+ const allBullish=[a4,a1,a15].every(a=>
+  a.direction==="BULLISH"&&
+  a.structure.direction==="BULLISH"
+ );
 
- const allBearish=
-  [a4,a1,a15].every(a=>
-   a.direction==="BEARISH"&&
-   a.structure.direction==="BEARISH"
-  );
+ const allBearish=[a4,a1,a15].every(a=>
+  a.direction==="BEARISH"&&
+  a.structure.direction==="BEARISH"
+ );
 
  let signal="WAIT";
- let reason="Konfirmasi multi-timeframe belum lengkap.";
+ let reasons=[];
 
- if(allBullish&&a4.rsi<70&&a15.rsi>=50&&a15.rsi<70&&
-    (breaks.bos==="Bullish"||liquidity.sweep==="Sell-side sweep")){
-  signal="BUY";
-  reason="EMA dan struktur tiga timeframe bullish, RSI sesuai, serta terdapat konfirmasi BOS atau sell-side sweep.";
- }else if(allBearish&&a4.rsi>30&&a15.rsi>30&&a15.rsi<=50&&
-    (breaks.bos==="Bearish"||liquidity.sweep==="Buy-side sweep")){
-  signal="SELL";
-  reason="EMA dan struktur tiga timeframe bearish, RSI sesuai, serta terdapat konfirmasi BOS atau buy-side sweep.";
- }else if(a4.rsi<=30&&allBearish){
-  reason="Struktur masih bearish, tetapi RSI H4 oversold. Sistem menunggu konfirmasi baru.";
- }else if(a4.rsi>=70&&allBullish){
-  reason="Struktur masih bullish, tetapi RSI H4 overbought. Sistem menunggu konfirmasi baru.";
+ if(a4.direction!==a1.direction||
+    a1.direction!==a15.direction){
+  reasons.push("Arah EMA antar timeframe belum seragam");
  }
 
- return {signal,reason,allBullish,allBearish};
+ if(a15.structure.direction==="MIXED"||
+    a15.structure.direction==="UNKNOWN"){
+  reasons.push("Struktur M15 belum searah");
+ }
+
+ if(breaks.latest){
+  reasons.push(
+   breaks.latest.type+" "+breaks.latest.direction+
+   " terdeteksi pada riwayat"
+  );
+ }else{
+  reasons.push("Belum ada BOS atau CHoCH terbaru");
+ }
+
+ if(liquidity.sweep==="Tidak terdeteksi"){
+  reasons.push("Belum ada sweep pada jendela pemeriksaan");
+ }
+
+ if(a4.rsi!==null&&a4.rsi<30){
+  reasons.push("RSI H4 berada di area oversold");
+ }
+
+ if(a4.rsi!==null&&a4.rsi>70){
+  reasons.push("RSI H4 berada di area overbought");
+ }
+
+ const bullishBreak=
+  breaks.latest&&
+  breaks.latest.direction==="Bullish";
+
+ const bearishBreak=
+  breaks.latest&&
+  breaks.latest.direction==="Bearish";
+
+ const bullishSweep=
+  liquidity.sweep==="Sell-side sweep";
+
+ const bearishSweep=
+  liquidity.sweep==="Buy-side sweep";
+
+ if(allBullish&&a4.rsi<70&&
+    a15.rsi>=50&&a15.rsi<70&&
+    (bullishBreak||bullishSweep)){
+  signal="BUY";
+  reasons=[
+   "EMA dan struktur tiga timeframe bullish",
+   "RSI memenuhi filter simulasi",
+   "Ada konfirmasi struktur atau sweep"
+  ];
+ }else if(allBearish&&a4.rsi>30&&
+    a15.rsi>30&&a15.rsi<=50&&
+    (bearishBreak||bearishSweep)){
+  signal="SELL";
+  reasons=[
+   "EMA dan struktur tiga timeframe bearish",
+   "RSI memenuhi filter simulasi",
+   "Ada konfirmasi struktur atau sweep"
+  ];
+ }
+
+ return {
+  signal,
+  reason:reasons.join(". ")+".",
+  allBullish,
+  allBearish
+ };
 }
 
 function renderAnalysis(d4,d1,d15,a4,a1,a15){
@@ -683,65 +962,148 @@ function renderAnalysis(d4,d1,d15,a4,a1,a15){
  setText("atr",fmt(a15.atr));
 
  const recent=d15.slice(-20);
+
  setText("support",fmt(Math.min(...recent.map(c=>c.low))));
  setText("resistance",fmt(Math.max(...recent.map(c=>c.high))));
 
  const structure=a15.structure;
+
  setText("swingHigh",structure.highLabel);
  setText("swingLow",structure.lowLabel);
  setText("structureDirection",structure.direction);
  setRowColor("structureDirection",structure.direction);
 
  const breaks=detectBreaks(d15,structure);
+
  setText("bos",breaks.bos);
  setText("choch",breaks.choch);
+
  setRowColor("bos",breaks.bos);
  setRowColor("choch",breaks.choch);
 
+ const breakEvent=breaks.latest;
+
+ setText("breakTime",breakEvent?
+  new Date(breakEvent.time*1000).toLocaleString("id-ID"):
+  "Tidak ada kejadian terbaru"
+ );
+
  const liquidity=detectLiquidity(d15,structure,a15.atr);
+
  setText("buyLiquidity",liquidity.buySide);
  setText("sellLiquidity",liquidity.sellSide);
- setText("equalHigh",liquidity.equalHigh?fmt(liquidity.equalHigh):"Tidak terdeteksi");
- setText("equalLow",liquidity.equalLow?fmt(liquidity.equalLow):"Tidak terdeteksi");
+
+ setText("equalHigh",liquidity.equalHigh?
+  fmt(liquidity.equalHigh.price):"Tidak terdeteksi"
+ );
+
+ setText("equalLow",liquidity.equalLow?
+  fmt(liquidity.equalLow.price):"Tidak terdeteksi"
+ );
+
  setText("sweep",liquidity.sweep);
  setRowColor("sweep",liquidity.sweep);
 
- const zones=detectZones(d15,a15.atr);
+ setText("sweepTime",liquidity.sweepEvent?
+  new Date(liquidity.sweepEvent.time*1000).toLocaleString("id-ID"):
+  "Tidak ada kejadian terbaru"
+ );
+
+ const zones=detectZones(d15);
+
  setText("demand",zones.demand?
   fmt(zones.demand.low)+" – "+fmt(zones.demand.high):
-  "Belum terdeteksi");
+  "Belum terdeteksi"
+ );
+
  setText("supply",zones.supply?
   fmt(zones.supply.low)+" – "+fmt(zones.supply.high):
-  "Belum terdeteksi");
+  "Belum terdeteksi"
+ );
 
  const fvg=detectFVG(d15);
+
  setText("fvg",fvg?
   fvg.type+": "+fmt(fvg.low)+" – "+fmt(fvg.high):
-  "Belum terdeteksi");
+  "Belum terdeteksi"
+ );
 
  const range=detectRange(d15);
+
  setText("rangeHigh",fmt(range.high));
  setText("rangeLow",fmt(range.low));
  setText("equilibrium",fmt(range.mid));
  setText("zonePosition",range.position);
+
  setRowColor("zonePosition",range.position);
 
- const result=determineSignal(a4,a1,a15,breaks,liquidity);
+ /* SKENARIO STRUKTUR */
+
+ let scenario="Belum ada konfirmasi";
+ let priorTrend="Belum diketahui";
+ let scenarioReason="Menunggu kejadian struktur yang valid.";
+
+ if(breakEvent){
+  priorTrend=breakEvent.previousTrend;
+
+  if(breakEvent.type==="CHoCH"){
+   scenario="Potensi perubahan struktur";
+   scenarioReason=
+    "Ada penembusan berlawanan dengan arah struktur sebelumnya. Belum berarti tren baru sudah terbentuk.";
+  }else{
+   scenario="Penembusan struktur";
+   scenarioReason=
+    "Ada penutupan candle melewati swing terkonfirmasi. Periksa konteks timeframe lain.";
+  }
+ }
+
+ setText("scenario",scenario);
+ setText("priorTrend",priorTrend);
+ setText("scenarioReason",scenarioReason);
+
+ const result=determineSignal(
+  a4,a1,a15,breaks,liquidity
+ );
+
  const sig=byId("signal");
+
  sig.textContent=result.signal;
  sig.className=result.signal.toLowerCase();
+
  setText("reason",result.reason);
 
  let confirmations=0;
- if(a4.direction===a1.direction&&a1.direction===a15.direction&&a4.direction!=="SIDEWAYS")confirmations++;
- if(a4.structure.direction===a1.structure.direction&&a1.structure.direction===a15.structure.direction&&a4.structure.direction!=="MIXED")confirmations++;
- if(breaks.bos!=="Tidak ada")confirmations++;
+
+ if(a4.direction===a1.direction&&
+    a1.direction===a15.direction&&
+    a4.direction!=="SIDEWAYS"){
+  confirmations++;
+ }
+
+ if(a4.structure.direction===a1.structure.direction&&
+    a1.structure.direction===a15.structure.direction&&
+    a4.structure.direction!=="MIXED"&&
+    a4.structure.direction!=="UNKNOWN"){
+  confirmations++;
+ }
+
+ if(breaks.latest)confirmations++;
  if(liquidity.sweep!=="Tidak terdeteksi")confirmations++;
- setText("confidence","Konfirmasi: "+confirmations+"/4");
- setText("price","Harga candle terakhir: "+fmt(a15.last));
+
+ setText("confidence",
+  "Kecocokan kondisi: "+confirmations+"/4"
+ );
+
+ setText("price",
+  "Harga candle terakhir: "+fmt(a15.last)
+ );
 
  const last=d15[d15.length-1];
- setText("candleTime","Waktu candle: "+new Date(last.time*1000).toLocaleString("id-ID"));
+
+ setText("candleTime",
+  "Waktu candle: "+
+  new Date(last.time*1000).toLocaleString("id-ID")
+ );
 
  updateRisk(result.signal,a15.last,a15.atr);
  renderHistory(result.signal,a15.last);
@@ -753,20 +1115,23 @@ function renderAnalysis(d4,d1,d15,a4,a1,a15){
   ", RSI "+fmtNumber(a1.rsi)+
   ". M15: "+a15.direction+", "+a15.structure.text+
   ", RSI "+fmtNumber(a15.rsi)+
-  ". BOS: "+breaks.bos+
-  ". CHoCH: "+breaks.choch+
+  ". BOS terakhir: "+breaks.bos+
+  ". CHoCH terakhir: "+breaks.choch+
   ". Sweep: "+liquidity.sweep+
   ". Posisi range: "+range.position+
-  ". Semua hasil merupakan perhitungan teknikal dari candle historis."
+  ". "+result.reason+
+  " Semua hasil berasal dari perhitungan candle historis."
  );
 }
 
 async function loadAll(){
  if(busy)return;
+
  busy=true;
 
  const button=byId("refreshButton");
  const conn=byId("connection");
+
  button.disabled=true;
  button.textContent="MEMUAT DATA...";
  conn.textContent="Mengambil data...";
@@ -787,18 +1152,29 @@ async function loadAll(){
 
   conn.textContent="TERHUBUNG";
   conn.style.color="#37d99a";
-  setText("updated",new Date().toLocaleTimeString("id-ID"));
+
+  setText("updated",
+   new Date().toLocaleTimeString("id-ID")
+  );
+
  }catch(error){
   conn.textContent="GAGAL TERHUBUNG";
   conn.style.color="#ff6878";
 
   setText("signal","WAIT");
   byId("signal").className="wait";
-  setText("reason","Data tidak valid. Analisis dinonaktifkan.");
-  setText("notes","Kesalahan: "+error.message+
-   ". Periksa koneksi internet atau coba kembali.");
 
-  setText("confidence","Konfirmasi: --");
+  setText("reason",
+   "Data tidak valid. Analisis dinonaktifkan."
+  );
+
+  setText("notes",
+   "Kesalahan: "+error.message+
+   ". Periksa koneksi internet atau coba kembali."
+  );
+
+  setText("confidence","Kecocokan kondisi: --");
+
  }finally{
   busy=false;
   button.disabled=false;
