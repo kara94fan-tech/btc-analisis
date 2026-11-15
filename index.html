@@ -1,269 +1,260 @@
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BTC ANALYZER V1</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#090d14;color:#e8edf5;font-family:Arial,sans-serif;padding:16px}
-.container{max-width:650px;margin:auto}
-header{padding:18px 0;border-bottom:1px solid #263142}
-h1{font-size:23px;margin:0;color:#fff}
-.sub{color:#8c9bad;font-size:12px;margin-top:7px}
+body{margin:0;padding:16px;background:#090d14;color:#e8edf5;font-family:Arial,sans-serif}
+main{max-width:650px;margin:auto}
+header{padding:15px 0;border-bottom:1px solid #263449}
+h1{font-size:23px;margin:0}
+.muted{color:#91a1b5;font-size:12px;line-height:1.6}
 .card{background:#121b29;border:1px solid #263449;border-radius:13px;padding:16px;margin-top:15px}
-.label{font-size:12px;color:#91a1b5}
+.price{font-size:27px;font-weight:bold;margin:10px 0}
 .signal{text-align:center;padding:22px}
-.signal h2{font-size:36px;margin:10px 0}
+.signal h2{font-size:38px;margin:10px}
 .wait{color:#ffc857}
 .buy{color:#37d99a}
 .sell{color:#ff6878}
-.price{font-size:28px;font-weight:bold;margin:9px 0}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-.tf{background:#1b2839;border-radius:9px;padding:12px 8px;text-align:center}
-.tf strong{display:block;font-size:17px;margin:9px 0}
-.tf small{color:#94a6bb}
-.row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #293648;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.tf{background:#1b2839;padding:12px 5px;text-align:center;border-radius:9px}
+.tf strong{display:block;font-size:15px;margin:10px 0}
+.tf small{font-size:11px;color:#91a1b5}
+.row{display:flex;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid #293648;font-size:13px}
 .row:last-child{border:0}
-.status{color:#37d99a}
-.muted{color:#91a1b5;font-size:12px;line-height:1.6}
-button{width:100%;padding:13px;background:#1769d2;color:white;border:0;border-radius:9px;font-weight:bold;font-size:14px;margin-top:12px}
+button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-radius:9px;font-weight:bold;margin-top:13px}
 .warning{color:#ffc857}
-footer{text-align:center;color:#74849a;font-size:11px;padding:20px}
 </style>
 </head>
 <body>
-<div class="container">
-
+<main>
 <header>
 <h1>₿ BTC ANALYZER V1</h1>
-<div class="sub">MARKET ANALYSIS SYSTEM • EDUCATIONAL DEMO</div>
+<div class="muted">MULTI TIMEFRAME MARKET SCANNER</div>
 </header>
 
 <div class="card">
-<div class="label">SYMBOL PEMBANDING</div>
-<div class="price">BTCUSDT</div>
-<div class="label">Sumber data: Binance Spot</div>
-<div class="label" id="price">Menunggu data harga...</div>
+<div class="muted">SIMBOL DATA PEMBANDING</div>
+<div class="price">BTC/USD</div>
+<div class="muted">Sumber: Kraken Public API</div>
+<div id="price" class="muted">Menunggu harga...</div>
 </div>
 
 <div class="card signal">
-<div class="label">HASIL ANALISIS SEMENTARA</div>
+<div class="muted">HASIL ANALISIS</div>
 <h2 id="signal" class="wait">WAIT</h2>
-<div id="reason" class="muted">Menunggu data candle yang valid.</div>
+<div id="reason" class="muted">Menunggu data candle valid.</div>
 </div>
 
 <div class="card">
 <strong>ANALISIS MULTI TIMEFRAME</strong>
-<div class="grid" style="margin-top:14px">
+<div class="grid">
 <div class="tf">
 <small>H4</small>
 <strong id="h4">--</strong>
-<small id="h4detail">Menunggu</small>
+<small id="h4r">Menunggu</small>
 </div>
 <div class="tf">
 <small>H1</small>
 <strong id="h1">--</strong>
-<small id="h1detail">Menunggu</small>
+<small id="h1r">Menunggu</small>
 </div>
 <div class="tf">
 <small>M15</small>
 <strong id="m15">--</strong>
-<small id="m15detail">Menunggu</small>
+<small id="m15r">Menunggu</small>
 </div>
 </div>
 </div>
 
 <div class="card">
-<strong>INDIKATOR MARKET</strong>
-<div class="row"><span>EMA 20 M15</span><b id="ema20">--</b></div>
-<div class="row"><span>EMA 50 M15</span><b id="ema50">--</b></div>
-<div class="row"><span>RSI 14 M15</span><b id="rsi">--</b></div>
-<div class="row"><span>Support M15</span><b id="support">--</b></div>
-<div class="row"><span>Resistance M15</span><b id="resistance">--</b></div>
+<strong>INDIKATOR M15</strong>
+<div class="row"><span>EMA 20</span><b id="ema20">--</b></div>
+<div class="row"><span>EMA 50</span><b id="ema50">--</b></div>
+<div class="row"><span>RSI 14</span><b id="rsi">--</b></div>
+<div class="row"><span>Support 20 candle</span><b id="support">--</b></div>
+<div class="row"><span>Resistance 20 candle</span><b id="resistance">--</b></div>
 </div>
 
 <div class="card">
 <strong>STATUS SISTEM</strong>
-<div class="row"><span>Koneksi data</span><b id="connection" class="warning">Menghubungkan...</b></div>
-<div class="row"><span>Pembaruan terakhir</span><b id="updated">--</b></div>
+<div class="row"><span>Koneksi</span><b id="connection" class="warning">Memuat...</b></div>
+<div class="row"><span>Pembaruan</span><b id="updated">--</b></div>
 <div class="row"><span>Mode</span><b>SIMULASI DEMO</b></div>
 <button onclick="loadAll()">PERBARUI ANALISIS</button>
 </div>
 
 <div class="card">
 <strong>CATATAN ANALISIS</strong>
-<p class="muted" id="notes">Sistem akan membaca candle H4, H1, dan M15 setelah data tersedia.</p>
+<p id="notes" class="muted">Menunggu data...</p>
 </div>
 
 <div class="card">
-<strong>PENTING</strong>
+<strong>PERINGATAN</strong>
 <p class="muted warning">
-Data berasal dari Binance BTCUSDT, bukan feed langsung Exness BTCUSD.
-Sinyal ini hanya untuk pembelajaran dan pengujian. Tidak ada transaksi otomatis.
-Tidak ada jaminan arah harga benar.
+Data Kraken adalah data pembanding BTC/USD, bukan harga langsung Exness.
+Sinyal hanya untuk pembelajaran. Tidak ada transaksi otomatis dan tidak ada jaminan prediksi benar.
 </p>
 </div>
-
-<footer>BTC ANALYZER V1 • BUILD 001</footer>
-</div>
+</main>
 
 <script>
-const API = "https://api.binance.com/api/v3/klines";
-const SYMBOL = "BTCUSDT";
-
-async function getCandles(interval){
-  const url = `${API}?symbol=${SYMBOL}&interval=${interval}&limit=100`;
-  const response = await fetch(url);
-  if(!response.ok) throw new Error("Data "+interval+" gagal diambil");
-  const data = await response.json();
-
-  // Abaikan candle terakhir yang masih berjalan.
-  return data.slice(0,-1).map(c=>({
-    time:c[0],
-    open:Number(c[1]),
-    high:Number(c[2]),
-    low:Number(c[3]),
-    close:Number(c[4]),
-    volume:Number(c[5])
-  }));
-}
+const ENDPOINT="https://api.kraken.com/0/public/OHLC";
+const TIMEFRAMES=[
+ {name:"H4",minutes:240},
+ {name:"H1",minutes:60},
+ {name:"M15",minutes:15}
+];
 
 function ema(values,period){
-  if(values.length<period) return null;
-  let result=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
-  const multiplier=2/(period+1);
-  for(let i=period;i<values.length;i++){
-    result=(values[i]-result)*multiplier+result;
-  }
-  return result;
+ if(values.length<period)return null;
+ let e=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
+ const k=2/(period+1);
+ for(let i=period;i<values.length;i++){
+  e=(values[i]-e)*k+e;
+ }
+ return e;
 }
 
-function rsi(values,period=14){
-  if(values.length<=period) return null;
-  let gains=0,losses=0;
-  for(let i=values.length-period;i<values.length;i++){
-    const change=values[i]-values[i-1];
-    if(change>0) gains+=change;
-    else losses-=change;
-  }
-  if(losses===0) return 100;
-  const rs=(gains/period)/(losses/period);
-  return 100-(100/(1+rs));
+function rsi(values,n=14){
+ if(values.length<=n)return null;
+ let gain=0,loss=0;
+ for(let i=values.length-n;i<values.length;i++){
+  const d=values[i]-values[i-1];
+  if(d>0)gain+=d;
+  else loss-=d;
+ }
+ if(loss===0)return 100;
+ const rs=(gain/n)/(loss/n);
+ return 100-100/(1+rs);
 }
 
-function analyze(candles){
-  const closes=candles.map(c=>c.close);
-  const e20=ema(closes,20);
-  const e50=ema(closes,50);
-  const last=closes[closes.length-1];
-  const strength=rsi(closes);
-
-  let direction="SIDEWAYS";
-  if(e20!==null && e50!==null){
-    if(last>e20 && e20>e50) direction="BULLISH";
-    else if(last<e20 && e20<e50) direction="BEARISH";
-  }
-
-  return {direction,last,e20,e50,rsi:strength};
+async function getCandles(minutes){
+ const url=ENDPOINT+"?pair=XBTUSD&interval="+minutes;
+ const response=await fetch(url);
+ if(!response.ok)throw new Error("HTTP "+response.status);
+ const json=await response.json();
+ if(json.error&&json.error.length)throw new Error(json.error.join(", "));
+ const key=Object.keys(json.result).find(k=>k!=="last");
+ if(!key)throw new Error("Data candle tidak ditemukan");
+ const raw=json.result[key];
+ if(!Array.isArray(raw)||raw.length<55)throw new Error("Candle belum cukup");
+ // Buang candle terakhir yang masih berjalan.
+ return raw.slice(0,-1).map(c=>({
+  time:Number(c[0]),
+  open:Number(c[1]),
+  high:Number(c[2]),
+  low:Number(c[3]),
+  close:Number(c[4]),
+  volume:Number(c[6])
+ }));
 }
 
-function money(value){
-  return value===null?"--":"$"+value.toLocaleString("en-US",{
-    minimumFractionDigits:2,maximumFractionDigits:2
-  });
+function analyze(data){
+ const closes=data.map(c=>c.close);
+ const e20=ema(closes,20);
+ const e50=ema(closes,50);
+ const last=closes[closes.length-1];
+ const strength=rsi(closes);
+ let direction="SIDEWAYS";
+ if(e20!==null&&e50!==null){
+  if(last>e20&&e20>e50)direction="BULLISH";
+  else if(last<e20&&e20<e50)direction="BEARISH";
+ }
+ return {direction,last,e20,e50,rsi:strength};
 }
 
-function showDirection(id,detailId,result){
-  const el=document.getElementById(id);
-  el.textContent=result.direction;
-  el.style.color=result.direction==="BULLISH"?"#37d99a":
-    result.direction==="BEARISH"?"#ff6878":"#ffc857";
-  document.getElementById(detailId).textContent=
-    "EMA20 / EMA50";
+function fmt(n){
+ return n===null?"--":"$"+n.toLocaleString("en-US",{
+  minimumFractionDigits:2,maximumFractionDigits:2
+ });
+}
+
+function setTF(id,detail,result){
+ const el=document.getElementById(id);
+ el.textContent=result.direction;
+ el.style.color=result.direction==="BULLISH"?"#37d99a":
+ result.direction==="BEARISH"?"#ff6878":"#ffc857";
+ document.getElementById(detail).textContent="EMA 20/50";
 }
 
 async function loadAll(){
-  const connection=document.getElementById("connection");
-  connection.textContent="Mengambil data...";
-  connection.style.color="#ffc857";
+ const conn=document.getElementById("connection");
+ conn.textContent="Mengambil data...";
+ conn.style.color="#ffc857";
 
-  try{
-    const [c4,c1,c15]=await Promise.all([
-      getCandles("4h"),
-      getCandles("1h"),
-      getCandles("15m")
-    ]);
+ try{
+  const [d4,d1,d15]=await Promise.all([
+   getCandles(240),getCandles(60),getCandles(15)
+  ]);
 
-    const a4=analyze(c4);
-    const a1=analyze(c1);
-    const a15=analyze(c15);
+  const a4=analyze(d4);
+  const a1=analyze(d1);
+  const a15=analyze(d15);
 
-    showDirection("h4","h4detail",a4);
-    showDirection("h1","h1detail",a1);
-    showDirection("m15","m15detail",a15);
+  setTF("h4","h4r",a4);
+  setTF("h1","h1r",a1);
+  setTF("m15","m15r",a15);
 
-    const signal=document.getElementById("signal");
-    const reason=document.getElementById("reason");
-    let result="WAIT";
-    let explanation="Arah belum cukup selaras untuk menghasilkan sinyal simulasi.";
+  let signal="WAIT";
+  let explanation="Belum ada keselarasan tiga timeframe.";
 
-    if(a4.direction==="BULLISH" &&
-       a1.direction==="BULLISH" &&
-       a15.direction==="BULLISH" &&
-       a15.rsi>=50 && a15.rsi<70){
-      result="BUY";
-      explanation="Ketiga timeframe bullish dan RSI M15 mendukung. Sinyal simulasi, bukan perintah transaksi.";
-    }
-    else if(a4.direction==="BEARISH" &&
-            a1.direction==="BEARISH" &&
-            a15.direction==="BEARISH" &&
-            a15.rsi>30 && a15.rsi<=50){
-      result="SELL";
-      explanation="Ketiga timeframe bearish dan RSI M15 mendukung. Sinyal simulasi, bukan perintah transaksi.";
-    }
-
-    signal.textContent=result;
-    signal.className=result.toLowerCase();
-    reason.textContent=explanation;
-
-    document.getElementById("price").textContent=
-      "Harga candle terakhir: "+money(a15.last);
-
-    document.getElementById("ema20").textContent=money(a15.e20);
-    document.getElementById("ema50").textContent=money(a15.e50);
-    document.getElementById("rsi").textContent=
-      a15.rsi===null?"--":a15.rsi.toFixed(2);
-
-    const recent=c15.slice(-20);
-    document.getElementById("support").textContent=
-      money(Math.min(...recent.map(c=>c.low)));
-    document.getElementById("resistance").textContent=
-      money(Math.max(...recent.map(c=>c.high)));
-
-    document.getElementById("notes").textContent=
-      "H4: "+a4.direction+
-      " | H1: "+a1.direction+
-      " | M15: "+a15.direction+
-      ". Analisis menggunakan EMA20, EMA50, dan RSI14 pada candle yang sudah selesai.";
-
-    document.getElementById("updated").textContent=
-      new Date().toLocaleTimeString("id-ID");
-
-    connection.textContent="TERHUBUNG";
-    connection.style.color="#37d99a";
-
-  }catch(error){
-    connection.textContent="GAGAL TERHUBUNG";
-    connection.style.color="#ff6878";
-    document.getElementById("notes").textContent=
-      "Data belum berhasil diambil. Periksa internet atau coba lagi. Detail: "+error.message;
-    document.getElementById("signal").textContent="WAIT";
-    document.getElementById("signal").className="wait";
-    document.getElementById("reason").textContent=
-      "Tidak ada sinyal karena data belum valid.";
+  if(a4.direction==="BULLISH"&&
+     a1.direction==="BULLISH"&&
+     a15.direction==="BULLISH"&&
+     a15.rsi>=50&&a15.rsi<70){
+   signal="BUY";
+   explanation="Ketiga timeframe bullish. Sinyal simulasi, perlu pengujian lebih lanjut.";
+  }else if(a4.direction==="BEARISH"&&
+           a1.direction==="BEARISH"&&
+           a15.direction==="BEARISH"&&
+           a15.rsi>30&&a15.rsi<=50){
+   signal="SELL";
+   explanation="Ketiga timeframe bearish. Sinyal simulasi, perlu pengujian lebih lanjut.";
   }
+
+  const sig=document.getElementById("signal");
+  sig.textContent=signal;
+  sig.className=signal.toLowerCase();
+  document.getElementById("reason").textContent=explanation;
+
+  document.getElementById("price").textContent=
+   "Harga candle terakhir: "+fmt(a15.last);
+  document.getElementById("ema20").textContent=fmt(a15.e20);
+  document.getElementById("ema50").textContent=fmt(a15.e50);
+  document.getElementById("rsi").textContent=a15.rsi.toFixed(2);
+
+  const recent=d15.slice(-20);
+  document.getElementById("support").textContent=
+   fmt(Math.min(...recent.map(c=>c.low)));
+  document.getElementById("resistance").textContent=
+   fmt(Math.max(...recent.map(c=>c.high)));
+
+  document.getElementById("updated").textContent=
+   new Date().toLocaleTimeString("id-ID");
+  document.getElementById("notes").textContent=
+   "H4 "+a4.direction+" | H1 "+a1.direction+
+   " | M15 "+a15.direction+
+   ". Analisis EMA20, EMA50 dan RSI14 dari candle yang sudah selesai.";
+
+  conn.textContent="TERHUBUNG";
+  conn.style.color="#37d99a";
+
+ }catch(error){
+  conn.textContent="GAGAL TERHUBUNG";
+  conn.style.color="#ff6878";
+  document.getElementById("signal").textContent="WAIT";
+  document.getElementById("signal").className="wait";
+  document.getElementById("reason").textContent=
+   "Data tidak valid. Sinyal dinonaktifkan.";
+  document.getElementById("notes").textContent=
+   "Kesalahan: "+error.message+
+   ". Periksa koneksi atau coba kembali.";
+ }
 }
 
 loadAll();
@@ -271,4 +262,3 @@ setInterval(loadAll,60000);
 </script>
 </body>
 </html>
-
