@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BTC ANALYZER V1</title>
+<title>BTC ANALYZER V1.1</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#090d14;color:#e8edf5;font-family:Arial,sans-serif}
@@ -24,6 +24,7 @@ h1{font-size:23px;margin:0}
 .tf{background:#1b2839;padding:12px 5px;text-align:center;border-radius:9px}
 .tf strong{display:block;font-size:15px;margin:10px 0}
 .tf small{font-size:11px;color:#91a1b5}
+.rsi-value{font-size:21px!important}
 .row{display:flex;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid #293648;font-size:13px}
 .row:last-child{border:0}
 button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-radius:9px;font-weight:bold;margin-top:13px}
@@ -32,8 +33,9 @@ button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-ra
 </head>
 <body>
 <main>
+
 <header>
-<h1>₿ BTC ANALYZER V1</h1>
+<h1>₿ BTC ANALYZER V1.1</h1>
 <div class="muted">MULTI TIMEFRAME MARKET SCANNER</div>
 </header>
 
@@ -53,29 +55,62 @@ button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-ra
 <div class="card">
 <strong>ANALISIS MULTI TIMEFRAME</strong>
 <div class="grid">
+
 <div class="tf">
 <small>H4</small>
 <strong id="h4">--</strong>
 <small id="h4r">Menunggu</small>
 </div>
+
 <div class="tf">
 <small>H1</small>
 <strong id="h1">--</strong>
 <small id="h1r">Menunggu</small>
 </div>
+
 <div class="tf">
 <small>M15</small>
 <strong id="m15">--</strong>
 <small id="m15r">Menunggu</small>
 </div>
+
 </div>
+</div>
+
+<div class="card">
+<strong>RSI 14 MULTI TIMEFRAME</strong>
+<div class="grid">
+
+<div class="tf">
+<small>RSI H4</small>
+<strong class="rsi-value" id="h4rsi">--</strong>
+<small id="h4rsiStatus">Menunggu</small>
+</div>
+
+<div class="tf">
+<small>RSI H1</small>
+<strong class="rsi-value" id="h1rsi">--</strong>
+<small id="h1rsiStatus">Menunggu</small>
+</div>
+
+<div class="tf">
+<small>RSI M15</small>
+<strong class="rsi-value" id="m15rsi">--</strong>
+<small id="m15rsiStatus">Menunggu</small>
+</div>
+
+</div>
+<p class="muted">
+RSI di bawah 30: oversold. RSI di atas 70: overbought.
+Nilai RSI bukan jaminan arah harga berikutnya.
+</p>
 </div>
 
 <div class="card">
 <strong>INDIKATOR M15</strong>
 <div class="row"><span>EMA 20</span><b id="ema20">--</b></div>
 <div class="row"><span>EMA 50</span><b id="ema50">--</b></div>
-<div class="row"><span>RSI 14</span><b id="rsi">--</b></div>
+<div class="row"><span>RSI 14 M15</span><b id="rsi">--</b></div>
 <div class="row"><span>Support 20 candle</span><b id="support">--</b></div>
 <div class="row"><span>Resistance 20 candle</span><b id="resistance">--</b></div>
 </div>
@@ -100,10 +135,12 @@ Data Kraken adalah data pembanding BTC/USD, bukan harga langsung Exness.
 Sinyal hanya untuk pembelajaran. Tidak ada transaksi otomatis dan tidak ada jaminan prediksi benar.
 </p>
 </div>
+
 </main>
 
 <script>
 const ENDPOINT="https://api.kraken.com/0/public/OHLC";
+
 const TIMEFRAMES=[
  {name:"H4",minutes:240},
  {name:"H1",minutes:60},
@@ -112,38 +149,81 @@ const TIMEFRAMES=[
 
 function ema(values,period){
  if(values.length<period)return null;
+
  let e=values.slice(0,period).reduce((a,b)=>a+b,0)/period;
  const k=2/(period+1);
+
  for(let i=period;i<values.length;i++){
   e=(values[i]-e)*k+e;
  }
+
  return e;
 }
 
+// RSI 14 menggunakan metode Wilder
 function rsi(values,n=14){
  if(values.length<=n)return null;
- let gain=0,loss=0;
- for(let i=values.length-n;i<values.length;i++){
-  const d=values[i]-values[i-1];
-  if(d>0)gain+=d;
-  else loss-=d;
+
+ let gain=0;
+ let loss=0;
+
+ // Rata-rata awal dari 14 perubahan harga
+ for(let i=1;i<=n;i++){
+  const change=values[i]-values[i-1];
+
+  if(change>0)gain+=change;
+  else loss-=change;
  }
- if(loss===0)return 100;
- const rs=(gain/n)/(loss/n);
- return 100-100/(1+rs);
+
+ let avgGain=gain/n;
+ let avgLoss=loss/n;
+
+ // Penghalusan Wilder untuk candle berikutnya
+ for(let i=n+1;i<values.length;i++){
+  const change=values[i]-values[i-1];
+
+  const currentGain=Math.max(change,0);
+  const currentLoss=Math.max(-change,0);
+
+  avgGain=((avgGain*(n-1))+currentGain)/n;
+  avgLoss=((avgLoss*(n-1))+currentLoss)/n;
+ }
+
+ if(avgGain===0&&avgLoss===0)return 50;
+ if(avgLoss===0)return 100;
+ if(avgGain===0)return 0;
+
+ const rs=avgGain/avgLoss;
+
+ return 100-(100/(1+rs));
 }
 
 async function getCandles(minutes){
  const url=ENDPOINT+"?pair=XBTUSD&interval="+minutes;
+
  const response=await fetch(url);
- if(!response.ok)throw new Error("HTTP "+response.status);
+
+ if(!response.ok){
+  throw new Error("HTTP "+response.status);
+ }
+
  const json=await response.json();
- if(json.error&&json.error.length)throw new Error(json.error.join(", "));
+
+ if(json.error&&json.error.length){
+  throw new Error(json.error.join(", "));
+ }
+
  const key=Object.keys(json.result).find(k=>k!=="last");
+
  if(!key)throw new Error("Data candle tidak ditemukan");
+
  const raw=json.result[key];
- if(!Array.isArray(raw)||raw.length<55)throw new Error("Candle belum cukup");
- // Buang candle terakhir yang masih berjalan.
+
+ if(!Array.isArray(raw)||raw.length<55){
+  throw new Error("Candle belum cukup");
+ }
+
+ // Buang candle terakhir yang masih berjalan
  return raw.slice(0,-1).map(c=>({
   time:Number(c[0]),
   open:Number(c[1]),
@@ -156,90 +236,176 @@ async function getCandles(minutes){
 
 function analyze(data){
  const closes=data.map(c=>c.close);
+
  const e20=ema(closes,20);
  const e50=ema(closes,50);
  const last=closes[closes.length-1];
  const strength=rsi(closes);
+
  let direction="SIDEWAYS";
+
  if(e20!==null&&e50!==null){
-  if(last>e20&&e20>e50)direction="BULLISH";
-  else if(last<e20&&e20<e50)direction="BEARISH";
+  if(last>e20&&e20>e50){
+   direction="BULLISH";
+  }else if(last<e20&&e20<e50){
+   direction="BEARISH";
+  }
  }
- return {direction,last,e20,e50,rsi:strength};
+
+ return {
+  direction,
+  last,
+  e20,
+  e50,
+  rsi:strength
+ };
 }
 
 function fmt(n){
  return n===null?"--":"$"+n.toLocaleString("en-US",{
-  minimumFractionDigits:2,maximumFractionDigits:2
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
  });
 }
 
 function setTF(id,detail,result){
  const el=document.getElementById(id);
+
  el.textContent=result.direction;
- el.style.color=result.direction==="BULLISH"?"#37d99a":
- result.direction==="BEARISH"?"#ff6878":"#ffc857";
- document.getElementById(detail).textContent="EMA 20/50";
+
+ el.style.color=
+  result.direction==="BULLISH"?"#37d99a":
+  result.direction==="BEARISH"?"#ff6878":
+  "#ffc857";
+
+ document.getElementById(detail).textContent=
+  "EMA 20/50";
+}
+
+function rsiStatus(value){
+ if(value===null)return "Data tidak tersedia";
+ if(value<30)return "Oversold";
+ if(value>70)return "Overbought";
+ if(value<50)return "Momentum bearish";
+ if(value>50)return "Momentum bullish";
+ return "Netral";
+}
+
+function setRSI(id,statusId,value){
+ const el=document.getElementById(id);
+ const status=document.getElementById(statusId);
+
+ if(value===null){
+  el.textContent="--";
+  status.textContent="Data tidak tersedia";
+  el.style.color="#ffc857";
+  return;
+ }
+
+ el.textContent=value.toFixed(2);
+ status.textContent=rsiStatus(value);
+
+ if(value<30){
+  el.style.color="#37d99a";
+ }else if(value>70){
+  el.style.color="#ff6878";
+ }else if(value<50){
+  el.style.color="#ffb45c";
+ }else{
+  el.style.color="#37d99a";
+ }
 }
 
 async function loadAll(){
  const conn=document.getElementById("connection");
+
  conn.textContent="Mengambil data...";
  conn.style.color="#ffc857";
 
  try{
   const [d4,d1,d15]=await Promise.all([
-   getCandles(240),getCandles(60),getCandles(15)
+   getCandles(240),
+   getCandles(60),
+   getCandles(15)
   ]);
 
   const a4=analyze(d4);
   const a1=analyze(d1);
   const a15=analyze(d15);
 
+  // Hasil arah timeframe
   setTF("h4","h4r",a4);
   setTF("h1","h1r",a1);
   setTF("m15","m15r",a15);
 
+  // RSI setiap timeframe
+  setRSI("h4rsi","h4rsiStatus",a4.rsi);
+  setRSI("h1rsi","h1rsiStatus",a1.rsi);
+  setRSI("m15rsi","m15rsiStatus",a15.rsi);
+
   let signal="WAIT";
   let explanation="Belum ada keselarasan tiga timeframe.";
 
-  if(a4.direction==="BULLISH"&&
-     a1.direction==="BULLISH"&&
-     a15.direction==="BULLISH"&&
-     a15.rsi>=50&&a15.rsi<70){
+  if(
+   a4.direction==="BULLISH"&&
+   a1.direction==="BULLISH"&&
+   a15.direction==="BULLISH"&&
+   a15.rsi>=50&&a15.rsi<70
+  ){
    signal="BUY";
-   explanation="Ketiga timeframe bullish. Sinyal simulasi, perlu pengujian lebih lanjut.";
-  }else if(a4.direction==="BEARISH"&&
-           a1.direction==="BEARISH"&&
-           a15.direction==="BEARISH"&&
-           a15.rsi>30&&a15.rsi<=50){
+   explanation=
+    "Ketiga timeframe bullish dan RSI M15 memenuhi aturan simulasi. Perlu pengujian lebih lanjut.";
+  }
+
+  else if(
+   a4.direction==="BEARISH"&&
+   a1.direction==="BEARISH"&&
+   a15.direction==="BEARISH"&&
+   a15.rsi>30&&a15.rsi<=50
+  ){
    signal="SELL";
-   explanation="Ketiga timeframe bearish. Sinyal simulasi, perlu pengujian lebih lanjut.";
+   explanation=
+    "Ketiga timeframe bearish dan RSI M15 memenuhi aturan simulasi. Perlu pengujian lebih lanjut.";
   }
 
   const sig=document.getElementById("signal");
+
   sig.textContent=signal;
   sig.className=signal.toLowerCase();
+
   document.getElementById("reason").textContent=explanation;
 
+  // Harga dan indikator M15
   document.getElementById("price").textContent=
    "Harga candle terakhir: "+fmt(a15.last);
+
   document.getElementById("ema20").textContent=fmt(a15.e20);
   document.getElementById("ema50").textContent=fmt(a15.e50);
-  document.getElementById("rsi").textContent=a15.rsi.toFixed(2);
+
+  document.getElementById("rsi").textContent=
+   a15.rsi===null?"--":a15.rsi.toFixed(2);
 
   const recent=d15.slice(-20);
+
   document.getElementById("support").textContent=
    fmt(Math.min(...recent.map(c=>c.low)));
+
   document.getElementById("resistance").textContent=
    fmt(Math.max(...recent.map(c=>c.high)));
 
+  // Waktu pembaruan
   document.getElementById("updated").textContent=
    new Date().toLocaleTimeString("id-ID");
+
+  // Catatan analisis
   document.getElementById("notes").textContent=
-   "H4 "+a4.direction+" | H1 "+a1.direction+
-   " | M15 "+a15.direction+
-   ". Analisis EMA20, EMA50 dan RSI14 dari candle yang sudah selesai.";
+   "H4 "+a4.direction+
+   " (RSI "+a4.rsi.toFixed(2)+") | "+
+   "H1 "+a1.direction+
+   " (RSI "+a1.rsi.toFixed(2)+") | "+
+   "M15 "+a15.direction+
+   " (RSI "+a15.rsi.toFixed(2)+
+   "). Perhitungan menggunakan EMA20, EMA50 dan RSI14 Wilder dari candle yang sudah selesai.";
 
   conn.textContent="TERHUBUNG";
   conn.style.color="#37d99a";
@@ -247,10 +413,13 @@ async function loadAll(){
  }catch(error){
   conn.textContent="GAGAL TERHUBUNG";
   conn.style.color="#ff6878";
+
   document.getElementById("signal").textContent="WAIT";
   document.getElementById("signal").className="wait";
+
   document.getElementById("reason").textContent=
    "Data tidak valid. Sinyal dinonaktifkan.";
+
   document.getElementById("notes").textContent=
    "Kesalahan: "+error.message+
    ". Periksa koneksi atau coba kembali.";
@@ -260,5 +429,6 @@ async function loadAll(){
 loadAll();
 setInterval(loadAll,60000);
 </script>
+
 </body>
 </html>
