@@ -1,0 +1,546 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080d12">
+<title>BTC AI Analyzer V1.0</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;padding:14px;background:#080d12;
+ color:#eaf2f7;font-family:Arial,sans-serif
+}
+.container{max-width:760px;margin:auto}
+.header{text-align:center;padding:20px 5px}
+.header h1{color:#20e69a;font-size:25px;margin:0}
+.header p{color:#8ba0af;font-size:12px}
+.card{
+ background:#111b24;border:1px solid #293945;
+ border-radius:14px;padding:16px;margin-bottom:13px
+}
+.label{font-size:11px;color:#8da2b2}
+.price{font-size:30px;font-weight:bold;margin:9px 0}
+.green{color:#22e6a0}
+.red{color:#ff6576}
+.yellow{color:#ffc857}
+.muted{color:#91a4b2}
+.grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px
+}
+.box{background:#192630;border-radius:10px;padding:13px}
+.value{font-size:17px;font-weight:bold;margin-top:7px}
+h3{font-size:15px;margin:0 0 13px}
+.row{
+ display:flex;justify-content:space-between;gap:10px;
+ padding:11px 0;border-bottom:1px solid #293741;
+ font-size:13px
+}
+.row:last-child{border-bottom:0}
+.signal{
+ text-align:center;background:#192630;
+ border-radius:12px;padding:20px 10px
+}
+.signal strong{font-size:30px}
+.bar{
+ height:9px;background:#293945;
+ border-radius:10px;overflow:hidden;margin-top:12px
+}
+.fill{height:100%;width:0%;background:#20d995}
+button{
+ width:100%;padding:14px;border:0;border-radius:10px;
+ background:#16c784;color:#04140d;font-weight:bold;
+ font-size:14px;cursor:pointer
+}
+button:disabled{opacity:.5}
+.small{font-size:11px;color:#8499a8;line-height:1.6}
+.status{font-size:12px;color:#a6b8c5}
+.badge{
+ display:inline-block;padding:5px 9px;border-radius:20px;
+ font-size:11px;background:#263640;color:#dce8ee
+}
+.footer{text-align:center;color:#728593;font-size:11px;padding:15px}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="header">
+ <h1>₿ BTC AI ANALYZER</h1>
+ <p>MARKET DIRECTION SYSTEM V1.0</p>
+ <div class="status" id="connection">Menghubungkan ke Binance...</div>
+</div>
+
+<div class="card">
+ <div class="label">HARGA BITCOIN / BTCUSDT</div>
+ <div class="price" id="price">Memuat data...</div>
+ <div class="status" id="change">Menunggu data market</div>
+</div>
+
+<div class="card">
+ <h3>MARKET DIRECTION</h3>
+ <div class="signal">
+  <div class="label">HASIL ANALISIS MULTI-TIMEFRAME</div>
+  <p><span class="badge" id="signalBadge">MENUNGGU DATA</span></p>
+  <strong id="direction">WAIT</strong>
+  <p class="status" id="explanation">Sedang membaca market...</p>
+  <div class="bar"><div class="fill" id="strength"></div></div>
+  <p class="small" id="score">Skor arah: --</p>
+ </div>
+ <p class="small">
+  Skor menunjukkan keselarasan indikator, bukan peluang
+  keberhasilan atau jaminan profit.
+ </p>
+</div>
+
+<div class="card">
+ <h3>ANALISIS MULTI-TIMEFRAME</h3>
+ <div id="timeframes">
+  <div class="row"><span>W1</span><b>Menunggu</b></div>
+  <div class="row"><span>D1</span><b>Menunggu</b></div>
+  <div class="row"><span>H4</span><b>Menunggu</b></div>
+  <div class="row"><span>H1</span><b>Menunggu</b></div>
+  <div class="row"><span>M15</span><b>Menunggu</b></div>
+ </div>
+</div>
+
+<div class="card">
+ <h3>INDIKATOR MARKET</h3>
+ <div class="grid">
+  <div class="box">
+   <div class="label">EMA 20 / EMA 50</div>
+   <div class="value" id="ema">--</div>
+  </div>
+  <div class="box">
+   <div class="label">RSI 14</div>
+   <div class="value" id="rsi">--</div>
+  </div>
+  <div class="box">
+   <div class="label">MACD</div>
+   <div class="value" id="macd">--</div>
+  </div>
+  <div class="box">
+   <div class="label">TREND UTAMA</div>
+   <div class="value" id="trend">--</div>
+  </div>
+ </div>
+</div>
+
+<div class="card">
+ <h3>AREA SUPPORT & RESISTANCE</h3>
+ <div class="row">
+  <span>Resistance terdekat</span>
+  <strong id="resistance">--</strong>
+ </div>
+ <div class="row">
+  <span>Harga sekarang</span>
+  <strong id="currentLevel">--</strong>
+ </div>
+ <div class="row">
+  <span>Support terdekat</span>
+  <strong id="support">--</strong>
+ </div>
+ <p class="small">
+  Area dihitung dari high dan low 30 candle terakhir pada
+  timeframe H4. Area ini bukan level yang pasti menahan harga.
+ </p>
+</div>
+
+<div class="card">
+ <h3>STATUS SISTEM</h3>
+ <div class="row">
+  <span>Sumber data</span><b>Binance Spot API</b>
+ </div>
+ <div class="row">
+  <span>Pair</span><b>BTCUSDT</b>
+ </div>
+ <div class="row">
+  <span>Pembaruan otomatis</span><b>60 detik</b>
+ </div>
+ <div class="row">
+  <span>Mode</span><b class="green">SIMULASI</b>
+ </div>
+ <div class="row">
+  <span>Waktu analisis</span><b id="updated">--</b>
+ </div>
+ <button id="refresh" onclick="runAnalysis()">
+  ANALISIS SEKARANG
+ </button>
+ <p class="small" id="systemStatus">Sistem siap dijalankan.</p>
+</div>
+
+<div class="card">
+ <h3>CARA MEMBACA SINYAL</h3>
+ <div class="row">
+  <span class="green">BULLISH</span>
+  <span>Tekanan naik lebih dominan</span>
+ </div>
+ <div class="row">
+  <span class="red">BEARISH</span>
+  <span>Tekanan turun lebih dominan</span>
+ </div>
+ <div class="row">
+  <span class="yellow">WAIT</span>
+  <span>Belum ada keselarasan yang cukup</span>
+ </div>
+ <p class="small">
+  BUY dan SELL merupakan label arah simulasi, bukan perintah
+  transaksi. Jangan gunakan sinyal ini untuk mempertaruhkan
+  uang sungguhan.
+ </p>
+</div>
+
+<div class="footer">
+ BTC AI ANALYZER V1.0<br>
+ Educational Market Analysis System
+</div>
+
+</div>
+
+<script>
+"use strict";
+
+const API = "https://api.binance.com/api/v3";
+const periods = [
+ {name:"W1", interval:"1w", weight:3},
+ {name:"D1", interval:"1d", weight:3},
+ {name:"H4", interval:"4h", weight:2},
+ {name:"H1", interval:"1h", weight:1},
+ {name:"M15",interval:"15m",weight:1}
+];
+
+let busy = false;
+let timer = null;
+
+function formatPrice(n){
+ return Number(n).toLocaleString("en-US",{
+  minimumFractionDigits:2,
+  maximumFractionDigits:2
+ });
+}
+
+function setText(id,value){
+ document.getElementById(id).textContent=value;
+}
+
+function setColor(id,color){
+ document.getElementById(id).style.color=color;
+}
+
+async function fetchJSON(url){
+ const response=await fetch(url);
+ if(!response.ok){
+  throw new Error("Server Binance: HTTP "+response.status);
+ }
+ return await response.json();
+}
+
+async function getCandles(interval){
+ const url=API+"/klines?symbol=BTCUSDT&interval="+
+ interval+"&limit=120";
+
+ const data=await fetchJSON(url);
+
+ return data.map(x=>({
+  time:x[0],
+  open:Number(x[1]),
+  high:Number(x[2]),
+  low:Number(x[3]),
+  close:Number(x[4]),
+  volume:Number(x[5])
+ }));
+}
+
+async function getTicker(){
+ return await fetchJSON(API+
+ "/ticker/24hr?symbol=BTCUSDT");
+}
+
+function emaSeries(values,period){
+ const k=2/(period+1);
+ let result=[values[0]];
+
+ for(let i=1;i<values.length;i++){
+  result.push(
+   values[i]*k+result[i-1]*(1-k)
+  );
+ }
+ return result;
+}
+
+function calcRSI(values,period=14){
+ if(values.length<=period)return 50;
+
+ let gain=0;
+ let loss=0;
+
+ for(let i=values.length-period;i<values.length;i++){
+  const diff=values[i]-values[i-1];
+  if(diff>0)gain+=diff;
+  else loss-=diff;
+ }
+
+ const avgGain=gain/period;
+ const avgLoss=loss/period;
+
+ if(avgLoss===0)return 100;
+
+ const rs=avgGain/avgLoss;
+ return 100-(100/(1+rs));
+}
+
+function calcMACD(values){
+ const fast=emaSeries(values,12);
+ const slow=emaSeries(values,26);
+
+ const line=values.map((v,i)=>fast[i]-slow[i]);
+ const signal=emaSeries(line,9);
+
+ return {
+  line:line[line.length-1],
+  signal:signal[signal.length-1],
+  histogram:line[line.length-1]-signal[signal.length-1]
+ };
+}
+
+function analyzeCandles(candles){
+ const closes=candles.map(c=>c.close);
+
+ const e20=emaSeries(closes,20);
+ const e50=emaSeries(closes,50);
+ const rsi=calcRSI(closes,14);
+ const macd=calcMACD(closes);
+
+ const last=closes[closes.length-1];
+ const ema20=e20[e20.length-1];
+ const ema50=e50[e50.length-1];
+
+ let score=0;
+ let reasons=[];
+
+ if(ema20>ema50){
+  score+=1;
+  reasons.push("EMA bullish");
+ }else{
+  score-=1;
+  reasons.push("EMA bearish");
+ }
+
+ if(last>ema20){
+  score+=1;
+  reasons.push("Harga di atas EMA20");
+ }else{
+  score-=1;
+  reasons.push("Harga di bawah EMA20");
+ }
+
+ if(rsi>55){
+  score+=1;
+  reasons.push("RSI bullish");
+ }else if(rsi<45){
+  score-=1;
+  reasons.push("RSI bearish");
+ }else{
+  reasons.push("RSI netral");
+ }
+
+ if(macd.histogram>0){
+  score+=1;
+  reasons.push("MACD positif");
+ }else{
+  score-=1;
+  reasons.push("MACD negatif");
+ }
+
+ let direction="SIDEWAYS";
+ if(score>=2)direction="BULLISH";
+ if(score<=-2)direction="BEARISH";
+
+ return {
+  direction,score,rsi,ema20,ema50,macd,last,reasons
+ };
+}
+
+function getLevels(candles){
+ const sample=candles.slice(-30);
+ const highs=sample.map(c=>c.high);
+ const lows=sample.map(c=>c.low);
+
+ return {
+  resistance:Math.max(...highs),
+  support:Math.min(...lows)
+ };
+}
+
+function directionColor(direction){
+ if(direction==="BULLISH")return "#22e6a0";
+ if(direction==="BEARISH")return "#ff6576";
+ return "#ffc857";
+}
+
+function renderTimeframes(results){
+ const container=document.getElementById("timeframes");
+ container.innerHTML="";
+
+ for(const item of results){
+  const row=document.createElement("div");
+  row.className="row";
+
+  const left=document.createElement("span");
+  left.textContent=item.name;
+
+  const right=document.createElement("b");
+  right.textContent=item.direction;
+  right.style.color=directionColor(item.direction);
+
+  row.append(left,right);
+  container.appendChild(row);
+ }
+}
+
+function renderSignal(results){
+ let total=0;
+ let max=0;
+
+ for(const item of results){
+  total+=item.score*item.weight;
+  max+=4*item.weight;
+ }
+
+ const percentage=Math.round(Math.abs(total)/max*100);
+
+ let direction="WAIT";
+ let explanation="Arah market belum cukup selaras.";
+
+ if(total>=max*0.30){
+  direction="BULLISH";
+  explanation="Tekanan naik lebih dominan pada indikator.";
+ }else if(total<=-max*0.30){
+  direction="BEARISH";
+  explanation="Tekanan turun lebih dominan pada indikator.";
+ }
+
+ const el=document.getElementById("direction");
+ el.textContent=direction;
+ el.style.color=directionColor(direction);
+
+ setText("explanation",explanation);
+ setText("score","Skor keselarasan arah: "+
+ percentage+"% | Skor mentah: "+total.toFixed(1));
+
+ document.getElementById("strength").style.width=
+ percentage+"%";
+
+ setText("signalBadge",
+  direction==="WAIT"?"BELUM ADA KONFIRMASI":
+  "ARAH "+direction
+ );
+
+ setColor("signalBadge",directionColor(direction));
+}
+
+async function runAnalysis(){
+ if(busy)return;
+ busy=true;
+
+ const button=document.getElementById("refresh");
+ button.disabled=true;
+ button.textContent="SEDANG MENGANALISIS...";
+
+ setText("systemStatus","Mengambil data candle BTC...");
+ setText("connection","Menghubungkan ke Binance...");
+
+ try{
+  const ticker=await getTicker();
+
+  const price=Number(ticker.lastPrice);
+  const change=Number(ticker.priceChangePercent);
+
+  setText("price","$"+formatPrice(price));
+  setText("change",
+   (change>=0?"+":"")+change.toFixed(2)+
+   "% perubahan 24 jam"
+  );
+
+  setColor("change",change>=0?"#22e6a0":"#ff6576");
+
+  const results=[];
+
+  for(const period of periods){
+   setText("systemStatus",
+    "Menganalisis timeframe "+period.name+"..."
+   );
+
+   const candles=await getCandles(period.interval);
+   const analysis=analyzeCandles(candles);
+
+   results.push({
+    ...analysis,
+    name:period.name,
+    weight:period.weight
+   });
+
+   // Menyimpan data indikator H4 untuk panel utama
+   if(period.name==="H4"){
+    setText("ema",
+     formatPrice(analysis.ema20)+" / "+
+     formatPrice(analysis.ema50)
+    );
+
+    setText("rsi",analysis.rsi.toFixed(2));
+    setText("macd",
+     analysis.macd.histogram.toFixed(2)
+    );
+
+    setText("trend",analysis.direction);
+
+    setColor("trend",directionColor(analysis.direction));
+
+    const levels=getLevels(candles);
+
+    setText("resistance","$"+formatPrice(levels.resistance));
+    setText("support","$"+formatPrice(levels.support));
+    setText("currentLevel","$"+formatPrice(price));
+   }
+  }
+
+  renderTimeframes(results);
+  renderSignal(results);
+
+  setText("updated",
+   new Date().toLocaleString("id-ID")
+  );
+
+  setText("connection","● TERHUBUNG KE BINANCE");
+  setColor("connection","#22e6a0");
+
+  setText("systemStatus",
+   "Analisis berhasil. Data diperbarui."
+  );
+
+ }catch(error){
+  setText("connection","● DATA TIDAK TERSEDIA");
+  setColor("connection","#ff6576");
+
+  setText("systemStatus",
+   "Gagal mengambil data: "+error.message+
+   ". Periksa internet atau coba lagi."
+  );
+
+ }finally{
+  busy=false;
+  button.disabled=false;
+  button.textContent="ANALISIS SEKARANG";
+ }
+}
+
+runAnalysis();
+timer=setInterval(runAnalysis,60000);
+
+</script>
+</body>
+</html>
