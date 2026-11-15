@@ -1,11 +1,10 @@
 
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BTC ANALYZER V1.1</title>
+<title>BTC ANALYZER V1.2</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:#090d14;color:#e8edf5;font-family:Arial,sans-serif}
@@ -21,22 +20,25 @@ h1{font-size:23px;margin:0}
 .buy{color:#37d99a}
 .sell{color:#ff6878}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
-.tf{background:#1b2839;padding:12px 5px;text-align:center;border-radius:9px}
+.tf{background:#1b2839;padding:12px 5px;text-align:center;border-radius:9px;min-width:0}
 .tf strong{display:block;font-size:15px;margin:10px 0}
 .tf small{font-size:11px;color:#91a1b5}
 .rsi-value{font-size:21px!important}
+.structure{font-size:12px!important;line-height:1.5;min-height:34px}
 .row{display:flex;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid #293648;font-size:13px}
 .row:last-child{border:0}
 button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-radius:9px;font-weight:bold;margin-top:13px}
 .warning{color:#ffc857}
+.good{color:#37d99a}
+.bad{color:#ff6878}
 </style>
 </head>
 <body>
 <main>
 
 <header>
-<h1>₿ BTC ANALYZER V1.1</h1>
-<div class="muted">MULTI TIMEFRAME MARKET SCANNER</div>
+<h1>₿ BTC ANALYZER V1.2</h1>
+<div class="muted">MULTI TIMEFRAME MARKET STRUCTURE SCANNER</div>
 </header>
 
 <div class="card">
@@ -60,18 +62,21 @@ button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-ra
 <small>H4</small>
 <strong id="h4">--</strong>
 <small id="h4r">Menunggu</small>
+<strong id="h4s" class="structure">Struktur --</strong>
 </div>
 
 <div class="tf">
 <small>H1</small>
 <strong id="h1">--</strong>
 <small id="h1r">Menunggu</small>
+<strong id="h1s" class="structure">Struktur --</strong>
 </div>
 
 <div class="tf">
 <small>M15</small>
 <strong id="m15">--</strong>
 <small id="m15r">Menunggu</small>
+<strong id="m15s" class="structure">Struktur --</strong>
 </div>
 
 </div>
@@ -80,30 +85,22 @@ button{width:100%;padding:14px;background:#1769d2;color:white;border:0;border-ra
 <div class="card">
 <strong>RSI 14 MULTI TIMEFRAME</strong>
 <div class="grid">
-
 <div class="tf">
 <small>RSI H4</small>
 <strong class="rsi-value" id="h4rsi">--</strong>
 <small id="h4rsiStatus">Menunggu</small>
 </div>
-
 <div class="tf">
 <small>RSI H1</small>
 <strong class="rsi-value" id="h1rsi">--</strong>
 <small id="h1rsiStatus">Menunggu</small>
 </div>
-
 <div class="tf">
 <small>RSI M15</small>
 <strong class="rsi-value" id="m15rsi">--</strong>
 <small id="m15rsiStatus">Menunggu</small>
 </div>
-
 </div>
-<p class="muted">
-RSI di bawah 30: oversold. RSI di atas 70: overbought.
-Nilai RSI bukan jaminan arah harga berikutnya.
-</p>
 </div>
 
 <div class="card">
@@ -132,7 +129,8 @@ Nilai RSI bukan jaminan arah harga berikutnya.
 <strong>PERINGATAN</strong>
 <p class="muted warning">
 Data Kraken adalah data pembanding BTC/USD, bukan harga langsung Exness.
-Sinyal hanya untuk pembelajaran. Tidak ada transaksi otomatis dan tidak ada jaminan prediksi benar.
+Struktur market memakai swing yang sudah terkonfirmasi. Sinyal hanya untuk pembelajaran, bukan kepastian arah harga.
+Tidak ada transaksi otomatis.
 </p>
 </div>
 
@@ -140,12 +138,6 @@ Sinyal hanya untuk pembelajaran. Tidak ada transaksi otomatis dan tidak ada jami
 
 <script>
 const ENDPOINT="https://api.kraken.com/0/public/OHLC";
-
-const TIMEFRAMES=[
- {name:"H4",minutes:240},
- {name:"H1",minutes:60},
- {name:"M15",minutes:15}
-];
 
 function ema(values,period){
  if(values.length<period)return null;
@@ -160,17 +152,15 @@ function ema(values,period){
  return e;
 }
 
-// RSI 14 menggunakan metode Wilder
+// RSI 14 metode Wilder
 function rsi(values,n=14){
  if(values.length<=n)return null;
 
  let gain=0;
  let loss=0;
 
- // Rata-rata awal dari 14 perubahan harga
  for(let i=1;i<=n;i++){
   const change=values[i]-values[i-1];
-
   if(change>0)gain+=change;
   else loss-=change;
  }
@@ -178,10 +168,8 @@ function rsi(values,n=14){
  let avgGain=gain/n;
  let avgLoss=loss/n;
 
- // Penghalusan Wilder untuk candle berikutnya
  for(let i=n+1;i<values.length;i++){
   const change=values[i]-values[i-1];
-
   const currentGain=Math.max(change,0);
   const currentLoss=Math.max(-change,0);
 
@@ -194,18 +182,14 @@ function rsi(values,n=14){
  if(avgGain===0)return 0;
 
  const rs=avgGain/avgLoss;
-
  return 100-(100/(1+rs));
 }
 
 async function getCandles(minutes){
  const url=ENDPOINT+"?pair=XBTUSD&interval="+minutes;
-
  const response=await fetch(url);
 
- if(!response.ok){
-  throw new Error("HTTP "+response.status);
- }
+ if(!response.ok)throw new Error("HTTP "+response.status);
 
  const json=await response.json();
 
@@ -223,7 +207,7 @@ async function getCandles(minutes){
   throw new Error("Candle belum cukup");
  }
 
- // Buang candle terakhir yang masih berjalan
+ // Candle terakhir belum selesai, jadi tidak dipakai
  return raw.slice(0,-1).map(c=>({
   time:Number(c[0]),
   open:Number(c[1]),
@@ -232,6 +216,81 @@ async function getCandles(minutes){
   close:Number(c[4]),
   volume:Number(c[6])
  }));
+}
+
+// Mencari swing high dan swing low terkonfirmasi
+function marketStructure(data){
+ const left=2;
+ const right=2;
+
+ const highs=[];
+ const lows=[];
+
+ for(let i=left;i<data.length-right;i++){
+  const current=data[i];
+
+  let isHigh=true;
+  let isLow=true;
+
+  for(let j=i-left;j<=i+right;j++){
+   if(j===i)continue;
+
+   if(data[j].high>=current.high){
+    isHigh=false;
+   }
+
+   if(data[j].low<=current.low){
+    isLow=false;
+   }
+  }
+
+  if(isHigh){
+   highs.push({
+    price:current.high,
+    time:current.time
+   });
+  }
+
+  if(isLow){
+   lows.push({
+    price:current.low,
+    time:current.time
+   });
+  }
+ }
+
+ if(highs.length<2||lows.length<2){
+  return {
+   highLabel:"--",
+   lowLabel:"--",
+   direction:"UNKNOWN",
+   text:"Struktur belum cukup"
+  };
+ }
+
+ const previousHigh=highs[highs.length-2].price;
+ const latestHigh=highs[highs.length-1].price;
+
+ const previousLow=lows[lows.length-2].price;
+ const latestLow=lows[lows.length-1].price;
+
+ const highLabel=latestHigh>previousHigh?"HH":"LH";
+ const lowLabel=latestLow>previousLow?"HL":"LL";
+
+ let direction="MIXED";
+
+ if(highLabel==="HH"&&lowLabel==="HL"){
+  direction="BULLISH";
+ }else if(highLabel==="LH"&&lowLabel==="LL"){
+  direction="BEARISH";
+ }
+
+ return {
+  highLabel,
+  lowLabel,
+  direction,
+  text:highLabel+" / "+lowLabel
+ };
 }
 
 function analyze(data){
@@ -252,12 +311,15 @@ function analyze(data){
   }
  }
 
+ const structure=marketStructure(data);
+
  return {
   direction,
   last,
   e20,
   e50,
-  rsi:strength
+  rsi:strength,
+  structure
  };
 }
 
@@ -268,18 +330,24 @@ function fmt(n){
  });
 }
 
-function setTF(id,detail,result){
+function setTF(id,detail,structureId,result){
  const el=document.getElementById(id);
 
  el.textContent=result.direction;
-
  el.style.color=
   result.direction==="BULLISH"?"#37d99a":
   result.direction==="BEARISH"?"#ff6878":
   "#ffc857";
 
- document.getElementById(detail).textContent=
-  "EMA 20/50";
+ document.getElementById(detail).textContent="EMA 20/50";
+
+ const structureEl=document.getElementById(structureId);
+ structureEl.textContent=result.structure.text;
+
+ structureEl.style.color=
+  result.structure.direction==="BULLISH"?"#37d99a":
+  result.structure.direction==="BEARISH"?"#ff6878":
+  "#ffc857";
 }
 
 function rsiStatus(value){
@@ -333,43 +401,63 @@ async function loadAll(){
   const a1=analyze(d1);
   const a15=analyze(d15);
 
-  // Hasil arah timeframe
-  setTF("h4","h4r",a4);
-  setTF("h1","h1r",a1);
-  setTF("m15","m15r",a15);
+  // Arah EMA
+  setTF("h4","h4r","h4s",a4);
+  setTF("h1","h1r","h1s",a1);
+  setTF("m15","m15r","m15s",a15);
 
-  // RSI setiap timeframe
+  // RSI 3 timeframe
   setRSI("h4rsi","h4rsiStatus",a4.rsi);
   setRSI("h1rsi","h1rsiStatus",a1.rsi);
   setRSI("m15rsi","m15rsiStatus",a15.rsi);
 
   let signal="WAIT";
-  let explanation="Belum ada keselarasan tiga timeframe.";
+  let explanation="Arah EMA dan struktur market belum sepenuhnya sejalan.";
 
-  if(
+  const allBullish=
    a4.direction==="BULLISH"&&
    a1.direction==="BULLISH"&&
    a15.direction==="BULLISH"&&
-   a15.rsi>=50&&a15.rsi<70
-  ){
-   signal="BUY";
-   explanation=
-    "Ketiga timeframe bullish dan RSI M15 memenuhi aturan simulasi. Perlu pengujian lebih lanjut.";
-  }
+   a4.structure.direction==="BULLISH"&&
+   a1.structure.direction==="BULLISH"&&
+   a15.structure.direction==="BULLISH";
 
-  else if(
+  const allBearish=
    a4.direction==="BEARISH"&&
    a1.direction==="BEARISH"&&
    a15.direction==="BEARISH"&&
-   a15.rsi>30&&a15.rsi<=50
+   a4.structure.direction==="BEARISH"&&
+   a1.structure.direction==="BEARISH"&&
+   a15.structure.direction==="BEARISH";
+
+  if(
+   allBullish&&
+   a4.rsi<70&&
+   a15.rsi>=50&&
+   a15.rsi<70
+  ){
+   signal="BUY";
+   explanation=
+    "EMA dan struktur tiga timeframe bullish. RSI memenuhi aturan simulasi. Tetap perlu konfirmasi candle.";
+  }
+
+  else if(
+   allBearish&&
+   a4.rsi>30&&
+   a15.rsi>30&&
+   a15.rsi<=50
   ){
    signal="SELL";
    explanation=
-    "Ketiga timeframe bearish dan RSI M15 memenuhi aturan simulasi. Perlu pengujian lebih lanjut.";
+    "EMA dan struktur tiga timeframe bearish. RSI memenuhi aturan simulasi. Tetap perlu konfirmasi candle.";
+  }
+
+  else if(a4.rsi<=30&&allBearish){
+   explanation=
+    "Struktur masih bearish, tetapi RSI H4 oversold. Sistem menunggu agar tidak mengejar penurunan.";
   }
 
   const sig=document.getElementById("signal");
-
   sig.textContent=signal;
   sig.className=signal.toLowerCase();
 
@@ -393,19 +481,16 @@ async function loadAll(){
   document.getElementById("resistance").textContent=
    fmt(Math.max(...recent.map(c=>c.high)));
 
-  // Waktu pembaruan
   document.getElementById("updated").textContent=
    new Date().toLocaleTimeString("id-ID");
 
-  // Catatan analisis
   document.getElementById("notes").textContent=
-   "H4 "+a4.direction+
-   " (RSI "+a4.rsi.toFixed(2)+") | "+
-   "H1 "+a1.direction+
-   " (RSI "+a1.rsi.toFixed(2)+") | "+
-   "M15 "+a15.direction+
-   " (RSI "+a15.rsi.toFixed(2)+
-   "). Perhitungan menggunakan EMA20, EMA50 dan RSI14 Wilder dari candle yang sudah selesai.";
+   "H4: "+a4.structure.text+" ("+a4.structure.direction+"), RSI "+
+   a4.rsi.toFixed(2)+". H1: "+a1.structure.text+" ("+
+   a1.structure.direction+"), RSI "+a1.rsi.toFixed(2)+
+   ". M15: "+a15.structure.text+" ("+
+   a15.structure.direction+"), RSI "+a15.rsi.toFixed(2)+
+   ". Swing memakai 2 candle kiri dan 2 candle kanan.";
 
   conn.textContent="TERHUBUNG";
   conn.style.color="#37d99a";
@@ -429,6 +514,5 @@ async function loadAll(){
 loadAll();
 setInterval(loadAll,60000);
 </script>
-
 </body>
 </html>
